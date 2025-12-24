@@ -43,7 +43,7 @@ app.get('/users/:email', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.send("Vinh dep trai!");
+    res.send("Vinh dep trai! ex user");
 });
 
 app.listen(5000, () => console.log("Server đang chạy tại cổng 5000"));
