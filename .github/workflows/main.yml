@@ -40,8 +40,8 @@ jobs:
           push: true
           tags: nashydawg/ex-user:latest
 
-      # - name: Trigger Webhook Deployment
-      #   run: |
-      #     curl -X POST https://06ac9734879b.ngrok-free.app/hooks/redeploy \
-      #     -H "Content-Type: application/json" \
-      #     -d '{"token": "secret-payload-123"}'
+      - name: Trigger Webhook Deployment
+        run: |
+          curl -X POST https://bb474fa38dce.ngrok-free.app/hooks/redeploy \
+          -H "Content-Type: application/json" \
+          -d '{"token": "secret-payload-123"}'
