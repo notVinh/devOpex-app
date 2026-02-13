@@ -1,23 +1,23 @@
-# Phiên bản Docker Compose file với bảo mật tài khoản DB hơn
 services:
   user-api:
     image: nashydawg/ex-user:latest
-    # ports:
-      # - "5000:5000"  # Không cần expose cổng ra ngoài(khi dung nginx làm reverse proxy thi an cai nay)
     depends_on:
       - db
     environment:
-      # Kết nối dùng User/Pass đã khai báo
       - MONGO_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@db:27017/${MONGO_DB_NAME}?authSource=admin
       - REDIS_URL=redis://redis:6379
     restart: always
     networks:
-      - devops-net # Kết nối vào mạng chung (khi dung nginx làm reverse proxy thi dung cai nay)
+      - devops-net
+    # Thêm phần này để ghi log rõ ràng cho Loki đọc
+    logging:
+      driver: "json-file"
+      options:
+        tag: "{{.Name}}"
 
   db:
     image: mongo:6.0
     environment:
-      # Thiết lập tài khoản Admin cho MongoDB khi khởi tạo lần đầu
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
     volumes:
@@ -30,7 +30,6 @@ services:
     networks:
       - devops-net
 
-  # Cấu hình Nginx làm reverse proxy (dung nginx thi them nginx va network)
   nginx:
     image: nginx:latest
     ports:
@@ -41,9 +40,8 @@ services:
       - user-api
     networks:
       - devops-net
-    # restart: always
 
-  # Dịch vụ giám sát hệ thống với Prometheus và Grafana
+  # --- MONITORING: Prometheus & Grafana ---
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter
@@ -52,22 +50,14 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
     networks:
       - devops-net
 
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
-    restart: unless-stopped
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
     ports:
       - "9090:9090"
     networks:
@@ -76,22 +66,34 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    restart: unless-stopped
     ports:
       - "3000:3000"
     networks:
       - devops-net
 
+  # --- LOGGING: Loki & Promtail ---
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - devops-net
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro # Đọc log từ docker host
+      - ./promtail/config.yml:/etc/promtail/config.yml # File cấu hình promtail
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - devops-net
+
 networks:
-  devops-net: # Khai báo mạng chung
+  devops-net:
     driver: bridge
 
 volumes:
   mongodb_data:
-
-
-
-
-
-
-
